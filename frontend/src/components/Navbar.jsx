@@ -20,6 +20,7 @@ export default function Navbar({ darkMode, onToggleDarkMode }) {
   const { session, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [avatarSeed, setAvatarSeed] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,13 +32,19 @@ export default function Navbar({ darkMode, onToggleDarkMode }) {
   useEffect(() => {
     if (!session) {
       setAvatarSeed(null);
+      setIsAdmin(false);
       return;
     }
     api
       .get('/profile/me')
-      .then((res) => setAvatarSeed(res.data.profile?.avatar_seed))
+      .then((res) => {
+        setAvatarSeed(res.data.profile?.avatar_seed);
+        setIsAdmin(res.data.profile?.role === 'admin');
+      })
       .catch(() => {});
   }, [session, location.pathname]);
+
+  const navLinks = isAdmin ? [...links, { to: '/admin', label: 'Admin' }] : links;
 
   return (
     <header className="sticky top-0 z-40 bg-reflexo-beigeLight/90 dark:bg-reflexo-dark/90 backdrop-blur border-b border-reflexo-beigeRose/40 shadow-softer">
@@ -51,7 +58,7 @@ export default function Navbar({ darkMode, onToggleDarkMode }) {
 
         {session && (
           <nav className="hidden md:flex items-center gap-5 text-sm font-medium">
-            {links.map((link) => {
+            {navLinks.map((link) => {
               const active = location.pathname === link.to;
               return (
                 <Link
@@ -127,7 +134,7 @@ export default function Navbar({ darkMode, onToggleDarkMode }) {
             <div className="flex items-center gap-2 py-2">
               <AvatarBubble seed={avatarSeed} size="sm" />
             </div>
-            {links.map((link) => (
+            {navLinks.map((link) => (
               <Link key={link.to} to={link.to} onClick={() => setOpen(false)} className="py-1">
                 {link.label}
               </Link>

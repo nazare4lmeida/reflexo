@@ -10,7 +10,23 @@ import {
   Search,
   Check,
   X,
+  ScrollText,
+  MessageSquare,
+  TrendingUp,
+  Download,
+  Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import PageTransition from '../components/PageTransition';
 import api from '../services/api';
 
@@ -18,9 +34,11 @@ const TABS = [
   { id: 'metrics', label: 'Métricas', icon: BarChart3 },
   { id: 'users', label: 'Usuários', icon: Users },
   { id: 'moderation', label: 'Moderação', icon: ShieldAlert },
+  { id: 'forum', label: 'Fórum', icon: MessageSquare },
   { id: 'reports', label: 'Denúncias', icon: Flag },
   { id: 'categories', label: 'Categorias', icon: FolderPlus },
   { id: 'notifications', label: 'Comunicados', icon: Megaphone },
+  { id: 'logs', label: 'Auditoria', icon: ScrollText },
 ];
 
 export default function AdminPanel() {
@@ -28,6 +46,7 @@ export default function AdminPanel() {
   const [accessDenied, setAccessDenied] = useState(false);
 
   const [metrics, setMetrics] = useState(null);
+  const [growth, setGrowth] = useState([]);
 
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState([]);
@@ -43,6 +62,11 @@ export default function AdminPanel() {
   const [notifMessage, setNotifMessage] = useState('');
   const [notifSent, setNotifSent] = useState(false);
 
+  const [allPosts, setAllPosts] = useState([]);
+  const [postFilter, setPostFilter] = useState('all');
+
+  const [logs, setLogs] = useState([]);
+
   function handleError(err) {
     if (err.response?.status === 403) {
       setAccessDenied(true);
@@ -54,7 +78,25 @@ export default function AdminPanel() {
   async function loadMetrics() {
     try {
       const res = await api.get('/admin/metrics');
-      setMetrics(res.data.metrics);
+      // O endpoint retorna os campos diretamente no corpo da resposta,
+      // não dentro de uma chave "metrics".
+      setMetrics(res.data);
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async function loadGrowth() {
+    try {
+      const res = await api.get('/admin/growth');
+      const formatted = (res.data.growth || []).map((g) => ({
+        ...g,
+        label: new Date(g.date + 'T00:00:00').toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+        }),
+      }));
+      setGrowth(formatted);
     } catch (err) {
       handleError(err);
     }
@@ -96,18 +138,40 @@ export default function AdminPanel() {
     }
   }
 
+  async function loadAllPosts() {
+    try {
+      const res = await api.get('/admin/posts');
+      setAllPosts(res.data.posts || []);
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async function loadLogs() {
+    try {
+      const res = await api.get('/admin/logs');
+      setLogs(res.data.logs || []);
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
   useEffect(() => {
     loadMetrics();
+    loadGrowth();
     loadUsers();
     loadQueue();
     loadReports();
     loadCategories();
+    loadAllPosts();
+    loadLogs();
   }, []);
 
   async function changeUserStatus(userId, status) {
     try {
       await api.patch(`/admin/users/${userId}/status`, { status });
       loadUsers(search);
+      loadLogs();
     } catch (err) {
       handleError(err);
     }
@@ -117,6 +181,8 @@ export default function AdminPanel() {
     try {
       await api.patch(`/admin/moderation/posts/${postId}`, { status });
       loadQueue();
+      loadAllPosts();
+      loadLogs();
     } catch (err) {
       handleError(err);
     }
@@ -126,6 +192,7 @@ export default function AdminPanel() {
     try {
       await api.patch(`/admin/moderation/comments/${commentId}`, { status });
       loadQueue();
+      loadLogs();
     } catch (err) {
       handleError(err);
     }
@@ -135,6 +202,7 @@ export default function AdminPanel() {
     try {
       await api.patch(`/admin/reports/${reportId}`, { status });
       loadReports();
+      loadLogs();
     } catch (err) {
       handleError(err);
     }
@@ -147,6 +215,7 @@ export default function AdminPanel() {
       await api.post('/admin/categories', { name: newCategory });
       setNewCategory('');
       loadCategories();
+      loadLogs();
     } catch (err) {
       handleError(err);
     }
@@ -160,11 +229,29 @@ export default function AdminPanel() {
       setNotifSent(true);
       setNotifTitle('');
       setNotifMessage('');
+      loadLogs();
       setTimeout(() => setNotifSent(false), 2500);
     } catch (err) {
       handleError(err);
     }
   }
+
+  function exportUsersCSV() {
+    const header = ['nickname', 'email', 'status', 'role', 'created_at'];
+    const rows = users.map((u) =>
+      header.map((h) => `"${String(u[h] ?? '').replace(/"/g, '""')}"`).join(',')
+    );
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'reflexo-usuarios.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const filteredPosts = allPosts.filter((p) => postFilter === 'all' || p.status === postFilter);
 
   if (accessDenied) {
     return (
@@ -209,49 +296,85 @@ export default function AdminPanel() {
 
       {/* Métricas */}
       {tab === 'metrics' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {metrics &&
-            [
-              ['Usuários totais', metrics.totalUsers],
-              ['Usuários ativos', metrics.activeUsers],
-              ['Entradas no diário', metrics.diaryEntries],
-              ['Posts no fórum', metrics.forumPosts],
-              ['Denúncias abertas', metrics.openReports],
-              ['Novos esta semana', metrics.newUsersThisWeek],
-            ].map(([label, value]) => (
-              <div key={label} className="bg-white/70 dark:bg-white/10 rounded-xl2 shadow-soft p-4 text-center">
-                <p className="text-2xl font-semibold text-reflexo-rose">{value ?? 0}</p>
-                <p className="text-xs text-reflexo-brown/60 dark:text-reflexo-beigeLight/60 mt-1">{label}</p>
-              </div>
-            ))}
-          {!metrics && <p className="text-sm col-span-full">Carregando métricas...</p>}
-        </motion.div>
+        <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4"
+          >
+            {metrics &&
+              [
+                ['Usuários totais', metrics.totalUsers],
+                ['Usuários ativos', metrics.activeUsers],
+                ['Entradas no diário', metrics.diaryEntries],
+                ['Posts no fórum', metrics.forumPosts],
+                ['Denúncias abertas', metrics.openReports],
+                ['Novos esta semana', metrics.newUsersThisWeek],
+              ].map(([label, value]) => (
+                <div key={label} className="bg-white/70 dark:bg-white/10 rounded-xl2 shadow-soft p-4 text-center">
+                  <p className="text-2xl font-semibold text-reflexo-rose">{value ?? 0}</p>
+                  <p className="text-xs text-reflexo-brown/60 dark:text-reflexo-beigeLight/60 mt-1">{label}</p>
+                </div>
+              ))}
+            {!metrics && <p className="text-sm col-span-full">Carregando métricas...</p>}
+          </motion.div>
+
+          {/* Crescimento de usuários */}
+          <div className="bg-white/70 dark:bg-white/10 rounded-xl2 shadow-soft p-6">
+            <h2 className="flex items-center gap-2 font-medium mb-4">
+              <TrendingUp className="h-4 w-4 text-reflexo-rose" /> Novos cadastros (últimos 14 dias)
+            </h2>
+            {growth.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={growth}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#93C5FD" />
+                  <XAxis dataKey="label" stroke="#94A3B8" fontSize={12} />
+                  <YAxis allowDecimals={false} stroke="#94A3B8" fontSize={12} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="count" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-reflexo-brown/60 dark:text-reflexo-beigeLight/60">
+                Carregando dados de crescimento...
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Usuários */}
       {tab === 'users' && (
         <div className="bg-white/70 dark:bg-white/10 rounded-xl2 shadow-soft p-6">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              loadUsers(search);
-            }}
-            className="flex gap-2 mb-4"
-          >
-            <div className="relative flex-1">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-reflexo-brown/40" />
-              <input
-                type="text"
-                placeholder="Buscar por nickname ou e-mail..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-reflexo-beigeRose/40 bg-white/60 dark:bg-white/10 pl-9 pr-4 py-2 outline-none"
-              />
-            </div>
-            <button type="submit" className="px-4 py-2 rounded-full bg-reflexo-rose text-white text-sm hover:opacity-90">
-              Buscar
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                loadUsers(search);
+              }}
+              className="flex gap-2 flex-1"
+            >
+              <div className="relative flex-1">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-reflexo-brown/40" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nickname ou e-mail..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-xl border border-reflexo-beigeRose/40 bg-white/60 dark:bg-white/10 pl-9 pr-4 py-2 outline-none"
+                />
+              </div>
+              <button type="submit" className="px-4 py-2 rounded-full bg-reflexo-rose text-white text-sm hover:opacity-90">
+                Buscar
+              </button>
+            </form>
+            <button
+              onClick={exportUsersCSV}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-reflexo-beigeRose hover:border-reflexo-rose text-sm transition"
+            >
+              <Download className="h-4 w-4" /> Exportar CSV
             </button>
-          </form>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -259,7 +382,9 @@ export default function AdminPanel() {
                 <tr className="text-left text-reflexo-brown/60 dark:text-reflexo-beigeLight/60 border-b border-reflexo-beigeRose/30">
                   <th className="py-2 pr-4">Nickname</th>
                   <th className="py-2 pr-4">E-mail</th>
+                  <th className="py-2 pr-4">Papel</th>
                   <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">Cadastro</th>
                   <th className="py-2 pr-4">Ações</th>
                 </tr>
               </thead>
@@ -267,7 +392,18 @@ export default function AdminPanel() {
                 {users.map((u) => (
                   <tr key={u.id} className="border-b border-reflexo-beigeRose/10">
                     <td className="py-2 pr-4">{u.nickname}</td>
-                    <td className="py-2 pr-4">{u.email}</td>
+                    <td className="py-2 pr-4">{u.email || '—'}</td>
+                    <td className="py-2 pr-4">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          u.role === 'admin'
+                            ? 'bg-reflexo-rose/15 text-reflexo-rose'
+                            : 'bg-reflexo-beigeRose/30 text-reflexo-brown dark:text-reflexo-beigeLight'
+                        }`}
+                      >
+                        {u.role || 'user'}
+                      </span>
+                    </td>
                     <td className="py-2 pr-4">
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
@@ -281,7 +417,10 @@ export default function AdminPanel() {
                         {u.status || 'active'}
                       </span>
                     </td>
-                    <td className="py-2 pr-4 space-x-2">
+                    <td className="py-2 pr-4 text-xs text-reflexo-brown/60 dark:text-reflexo-beigeLight/60">
+                      {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                    </td>
+                    <td className="py-2 pr-4 space-x-2 whitespace-nowrap">
                       <button
                         onClick={() => changeUserStatus(u.id, 'active')}
                         className="text-xs px-2 py-1 rounded-full border border-reflexo-beigeRose hover:border-reflexo-rose"
@@ -380,6 +519,92 @@ export default function AdminPanel() {
         </div>
       )}
 
+      {/* Visão geral do fórum */}
+      {tab === 'forum' && (
+        <div className="bg-white/70 dark:bg-white/10 rounded-xl2 shadow-soft p-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 className="flex items-center gap-2 font-medium">
+              <MessageSquare className="h-4 w-4 text-reflexo-rose" /> Todos os posts ({allPosts.length})
+            </h2>
+            <div className="flex gap-2">
+              {[
+                ['all', 'Todos'],
+                ['approved', 'Aprovados'],
+                ['pending', 'Pendentes'],
+                ['removed', 'Removidos'],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setPostFilter(value)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    postFilter === value
+                      ? 'bg-reflexo-rose text-white border-reflexo-rose'
+                      : 'border-reflexo-beigeRose hover:border-reflexo-rose'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {filteredPosts.map((p) => (
+              <div key={p.id} className="rounded-xl border border-reflexo-beigeRose/30 p-4">
+                <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-reflexo-beigeRose/30">
+                      {p.forum_categories?.name || 'Geral'}
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        p.status === 'approved'
+                          ? 'bg-green-100 text-green-700'
+                          : p.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-red-100 text-red-600'
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                  </div>
+                  <span className="text-xs text-reflexo-brown/50 dark:text-reflexo-beigeLight/50">
+                    {p.nickname} · {new Date(p.created_at).toLocaleDateString('pt-BR')}
+                  </span>
+                </div>
+                <p className="text-sm font-medium mb-1">{p.title || 'Sem título'}</p>
+                <p className="text-sm text-reflexo-brown/70 dark:text-reflexo-beigeLight/70 mb-3 line-clamp-3 whitespace-pre-wrap">
+                  {p.content}
+                </p>
+                <div className="flex gap-2">
+                  {p.status !== 'approved' && (
+                    <button
+                      onClick={() => moderatePost(p.id, 'approved')}
+                      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700 hover:opacity-90"
+                    >
+                      <Eye className="h-3.5 w-3.5" /> Aprovar
+                    </button>
+                  )}
+                  {p.status !== 'removed' && (
+                    <button
+                      onClick={() => moderatePost(p.id, 'removed')}
+                      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-red-100 text-red-600 hover:opacity-90"
+                    >
+                      <EyeOff className="h-3.5 w-3.5" /> Remover
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {filteredPosts.length === 0 && (
+              <p className="text-sm text-reflexo-brown/60 dark:text-reflexo-beigeLight/60 text-center py-6">
+                Nenhum post encontrado para este filtro.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Denúncias */}
       {tab === 'reports' && (
         <div className="bg-white/70 dark:bg-white/10 rounded-xl2 shadow-soft p-6">
@@ -391,20 +616,32 @@ export default function AdminPanel() {
                   <span className="text-xs px-2 py-0.5 rounded-full bg-reflexo-beigeRose/30">{r.target_type}</span>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
-                      r.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                      r.status === 'reviewed'
+                        ? 'bg-green-100 text-green-700'
+                        : r.status === 'dismissed'
+                        ? 'bg-reflexo-gray/30 text-reflexo-brown dark:text-reflexo-beigeLight'
+                        : 'bg-yellow-100 text-yellow-700'
                     }`}
                   >
-                    {r.status || 'pending'}
+                    {r.status || 'open'}
                   </span>
                 </div>
                 <p className="text-sm text-reflexo-brown/70 dark:text-reflexo-beigeLight/70 mb-3">{r.reason}</p>
-                {r.status !== 'resolved' && (
-                  <button
-                    onClick={() => resolveReport(r.id, 'resolved')}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700 hover:opacity-90"
-                  >
-                    <Check className="h-3.5 w-3.5" /> Marcar como resolvida
-                  </button>
+                {r.status === 'open' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => resolveReport(r.id, 'reviewed')}
+                      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-green-100 text-green-700 hover:opacity-90"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Marcar como revisada
+                    </button>
+                    <button
+                      onClick={() => resolveReport(r.id, 'dismissed')}
+                      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-reflexo-gray/20 hover:bg-reflexo-gray/30"
+                    >
+                      <X className="h-3.5 w-3.5" /> Descartar
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -465,6 +702,49 @@ export default function AdminPanel() {
             </button>
             {notifSent && <p className="text-sm text-green-600">Comunicado enviado com sucesso.</p>}
           </form>
+        </div>
+      )}
+
+      {/* Logs de auditoria */}
+      {tab === 'logs' && (
+        <div className="bg-white/70 dark:bg-white/10 rounded-xl2 shadow-soft p-6">
+          <h2 className="flex items-center gap-2 font-medium mb-3">
+            <ScrollText className="h-4 w-4 text-reflexo-rose" /> Histórico de ações administrativas
+          </h2>
+          <p className="text-xs text-reflexo-brown/60 dark:text-reflexo-beigeLight/60 mb-4">
+            Últimas 50 ações realizadas por administradores na plataforma, para fins de auditoria.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-reflexo-brown/60 dark:text-reflexo-beigeLight/60 border-b border-reflexo-beigeRose/30">
+                  <th className="py-2 pr-4">Data</th>
+                  <th className="py-2 pr-4">Ação</th>
+                  <th className="py-2 pr-4">Detalhes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id} className="border-b border-reflexo-beigeRose/10 align-top">
+                    <td className="py-2 pr-4 text-xs whitespace-nowrap text-reflexo-brown/60 dark:text-reflexo-beigeLight/60">
+                      {new Date(log.created_at).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="py-2 pr-4">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-reflexo-beigeRose/30">{log.action}</span>
+                    </td>
+                    <td className="py-2 pr-4 text-xs text-reflexo-brown/70 dark:text-reflexo-beigeLight/70 break-all">
+                      {log.details ? JSON.stringify(log.details) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {logs.length === 0 && (
+              <p className="text-sm text-reflexo-brown/60 dark:text-reflexo-beigeLight/60 text-center py-6">
+                Nenhuma ação registrada ainda.
+              </p>
+            )}
+          </div>
         </div>
       )}
     </PageTransition>
