@@ -38,7 +38,7 @@ router.post(
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
-        email_confirm: false,
+        email_confirm: true, // Marca o e-mail como confirmado para evitar a necessidade de confirmação por parte do usuário
       });
 
       if (error) {
