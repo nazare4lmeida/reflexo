@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-reflexo-beigeLight text-reflexo-brown transition-colors duration-300;
+}
+
+.dark body, body.dark {
+  @apply bg-reflexo-dark text-reflexo-beigeLight;
+}
+
+/* Textura sutil de papel para o diário */
+.paper-texture {
+  background-color: #fdfaf6;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 27px,
+      rgba(94, 75, 69, 0.08) 28px
+    );
+  background-size: 100% 28px;
+}
+
+.dark .paper-texture {
+  background-color: #1E293B;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 27px,
+      rgba(220, 199, 176, 0.06) 28px
+    );
+}
+
+/* Textura de álbum envelhecido */
+.album-page {
+  background-color: #f3e6d6;
+  background-image: radial-gradient(circle at 20% 30%, rgba(94,75,69,0.04) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(94,75,69,0.05) 0%, transparent 45%);
+}
+
+.polaroid {
+  background: #fffdf9;
+  padding: 0.75rem 0.75rem 2rem 0.75rem;
+  box-shadow: 0 6px 16px rgba(94, 75, 69, 0.15);
+  border-radius: 0.25rem;
+}
+
+.font-handwritten {
+  font-family: 'Caveat', cursive;
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(176, 96, 120, 0.35);
+  border-radius: 4px;
+}
