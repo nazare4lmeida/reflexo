@@ -64,3 +64,36 @@ body {
   background-color: rgba(176, 96, 120, 0.35);
   border-radius: 4px;
 }
+
+/* ==========================================================================
+   ACRÉSCIMOS PARA A HOME CINEMATOGRÁFICA (Mantendo tudo acima intacto)
+   ========================================================================== */
+
+/* Animação de Panorâmica Lenta para dar vida à imagem de fundo */
+@keyframes backgroundSlowPan {
+  0% { transform: scale(1.02) translate(0, 0); }
+  100% { transform: scale(1.06) translate(-0.5%, -0.5%); }
+}
+
+.animate-bg-hero {
+  animation: backgroundSlowPan 25s infinite alternate ease-in-out;
+}
+
+/* Overlay escuro/esverdeado sutil para dar o tom da imagem e garantir leitura */
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(30, 50, 60, 0.2) 0%, rgba(15, 23, 42, 0.45) 100%);
+  z-index: 1;
+}
+
+/* Transição suave de flutuação para as Polaroids */
+.polaroid-float {
+  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.polaroid-float:hover {
+  transform: translateY(-10px) scale(1.03) !important;
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.3);
+  z-index: 30;
+}
