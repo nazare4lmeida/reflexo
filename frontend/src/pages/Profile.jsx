@@ -17,7 +17,6 @@ import {
   Palette,
 } from "lucide-react";
 import PageTransition from "../components/PageTransition";
-import MentalHealthNotice from "../components/MentalHealthNotice";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import AvatarPicker, { AvatarBubble } from "../components/AvatarPicker";
@@ -519,7 +518,7 @@ export default function Profile({ onToggleDarkMode }) {
                       key={label}
                       className="rounded-xl bg-white/80 dark:bg-stone-800/30 border border-stone-200/40 p-4 flex flex-col justify-between shadow-sm"
                     >
-                      <p className="text-3xl font-light font-sans text-reflexo-rose font-semibold">
+                      <p className="text-3xl font-light font-sans text-reflexo-rose">
                         {value}
                       </p>
                       <p className="text-[11px] text-stone-600 dark:text-stone-400 font-light mt-1.5">
@@ -551,7 +550,7 @@ export default function Profile({ onToggleDarkMode }) {
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] uppercase tracking-widest font-semibold text-stone-700 dark:text-stone-300 block mb-1.5 flex items-center gap-1">
+                      <label className="text-[10px] uppercase tracking-widest font-semibold text-stone-700 dark:text-stone-300 mb-1.5 flex items-center gap-1">
                         <Palette className="h-3.5 w-3.5 text-reflexo-rose/60" />{" "}
                         Customização de Tema
                       </label>
@@ -744,10 +743,6 @@ export default function Profile({ onToggleDarkMode }) {
             </div>
           </div>
 
-          {/* NOTA DE RODAPÉ DE SAÚDE MENTAL */}
-          <div className="pt-2">
-            <MentalHealthNotice className="rounded-2xl shadow-soft" />
-          </div>
         </div>
       </div>
 
