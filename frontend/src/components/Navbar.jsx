@@ -52,7 +52,7 @@ export default function Navbar({ darkMode, onToggleDarkMode }) {
 
   return (
     <header 
-      className={`sticky top-0 z-40 transition-all duration-500 ${
+      className={`relative top-0 z-40 transition-all duration-500 ${
         isLanding 
           ? 'bg-transparent border-b border-transparent' 
           : 'bg-white/60 dark:bg-stone-900/50 backdrop-blur-md border-b border-stone-200/20 dark:border-stone-800/20 shadow-sm'
