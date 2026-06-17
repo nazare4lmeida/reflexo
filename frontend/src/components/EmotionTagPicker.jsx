@@ -1,14 +1,12 @@
 import React from 'react';
+import { Sun, CloudRain, Wind, Compass, Sparkles } from 'lucide-react';
 
 const EMOTIONS = [
-  { slug: 'ansiedade', label: 'Ansiedade', emoji: '😟' },
-  { slug: 'alegria', label: 'Alegria', emoji: '😊' },
-  { slug: 'medo', label: 'Medo', emoji: '😨' },
-  { slug: 'gratidao', label: 'Gratidão', emoji: '🙏' },
-  { slug: 'cansaco', label: 'Cansaço', emoji: '😴' },
-  { slug: 'tristeza', label: 'Tristeza', emoji: '😢' },
-  { slug: 'raiva', label: 'Raiva', emoji: '😠' },
-  { slug: 'calma', label: 'Calma', emoji: '🌿' },
+  { slug: 'leve', label: 'Leveza', emoji: '☼' },       // Sol suave
+  { slug: 'ansioso', label: 'Turbulência', emoji: '≈' }, // Ondas / Vento
+  { slug: 'triste', label: 'Melancolia', emoji: '☁' },  // Nuvem
+  { slug: 'calmo', label: 'Serenidade', emoji: '☘' },   // Trevo / Planta
+  { slug: 'radiante', label: 'Radiante', emoji: '☀' }   // Sol brilhante
 ];
 
 /**
